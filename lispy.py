@@ -155,45 +155,6 @@ class Exp():
             exps = [self.eval(exp) for exp in body]
             return proc(*exps)
         
-            
-def eval(exp, env):
-    if isa(exp, str):
-        return env.find(exp)
-    elif not isa(exp, list):
-        return exp
-    elif exp[0] == 'quote':
-        (_, body) = exp
-        return body
-    elif exp[0] == 'delay':
-        (_, body) = exp
-        return lambda:eval(body, env)
-    elif exp[0] == 'force':
-        (_, body) = exp
-        cache = eval(body, env)
-        return cache()
-    elif exp[0] == 'define':
-        (_, var, body) = exp
-        env[var] = eval(body, env)
-    elif exp[0] == 'lambda':
-        (_, var, body) = exp
-        return lambda *arg:eval(body, Env(var, arg, env))
-    elif exp[0] == 'if':
-        (_, test, do, alt) = exp
-        if eval(test, env):
-            return eval(do, env)
-        else:
-            return eval(alt, env)
-    elif exp[0] == 'cond':
-        squen = exp[1:]
-        for pair in squen:
-            (test, body) = pair
-            if eval(test, env):
-                return eval(body, env)
-    else:
-        exps = [eval(x, env) for x in exp]
-        proc = exps.pop(0)
-        return proc(*exps)
-
 def to_string(l):
     if isa(l, list):
         inner = [to_string(x) for x in l]
