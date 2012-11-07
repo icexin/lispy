@@ -4,11 +4,21 @@ import sys
 import os
 import math
 import operator as op
-
+import pprint
 
 isa = isinstance
 
-def global_init():
+def trace(env):
+    print '####################'
+    while True:
+        pprint.pprint(env)
+        if env.outer:
+            print 'outer>>>'
+            env = env.outer
+        else:
+            break
+
+def _global():
     def display(*arg):
         for buffer in arg:
             print to_string(buffer)
@@ -29,8 +39,8 @@ def global_init():
     }
 	
     glo = Env()
-    glo.update(vars(math))
-    glo.update(vars(__builtins__))
+   # glo.update(vars(math))
+   # glo.update(vars(__builtins__))
     glo.update(builtins)
     return glo
 
@@ -88,8 +98,6 @@ def parse(code):
     	exps.append(listize(tokens))
     return exps
 
-
-
 class Env(dict):
     def __init__(self, params=(), args=(), outer=None):
         self.update(zip(params, args))
@@ -101,8 +109,8 @@ class Env(dict):
             raise ValueError('%s not found' %(var))
         else:
             return self.outer.find(var)
-class Exp():
-    def __init__(self, env = global_init()):
+class Grammer():
+    def __init__(self, env = _global()):
         self.env = env
         
     def _quote(self, body):
@@ -114,9 +122,8 @@ class Exp():
     def _lambda(self, var, body):
         def closure(*arg):
             self.env = Env(var, arg, self.env)
-            import pprint
-            pprint.pprint(self.env)
             return self.eval(body)
+        trace(self.env)
         return closure
     
     def _cond(self, *pairs):
@@ -135,7 +142,12 @@ class Exp():
         proc = self.eval(body)
         return proc()
     
-    def proc(self, proc, *args):
+    def _begin(self, *seq):
+        for exp in seq[:-1]:
+            self.eval(exp)
+        return self.eval(seq[-1])
+    
+    def apply(self, proc, args):
         args = [self.eval(arg) for arg in args]
         proc = self.eval(proc)
         return proc(*args)
@@ -145,15 +157,12 @@ class Exp():
             return self.env.find(exp)
         if not isa(exp, list):
             return exp
-    
         name = '_' + str(exp[0])
         body = exp[1:]
         if hasattr(self, name):
             return  getattr(self, name)(*body)
         else:
-            proc = self.eval(exp[0])
-            exps = [self.eval(exp) for exp in body]
-            return proc(*exps)
+            return self.apply(exp[0], exp[1:])
         
 def to_string(l):
     if isa(l, list):
@@ -163,33 +172,27 @@ def to_string(l):
         return str(l)
 
 
-def repl(prompt = 'lisp> '):
-    glo = global_init()
+def repl(prompt = 'lisp> ', glo = _global()):
     while True:
         code = raw_input(prompt)
         execute(code, glo)
 
-def execute(code, glo):
-    runner = Exp(glo)
+def execute(code, glo = _global()):
+    grammer = Grammer(glo)
     if code:
         exps = parse(code)
         while exps:
             exp = exps.pop(0)
-            val = runner.eval(exp)
+            val = grammer.eval(exp)
             if val is not None:
                 print to_string(val)
-	
-
-
-
 
 def main():
-    glo = global_init()
     if len(sys.argv) > 1:
         name = sys.argv[1]
         if os.path.exists(name):
             code = open(name).read()
-            execute(code, glo)
+            execute(code, _global())
     else:
         repl()
 
